@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Keyword-Override Notifications Prototype</title>
+	<style>
+		:root {
+			--bg: #0f0f10;
+			--panel: #1c1c1f;
+			--panel-2: #232327;
+			--text: #e9e9ea;
+			--muted: #a9a9b2;
+			--primary: #3390ec;
+			--danger: #ff4d4d;
+			--success: #2ecc71;
+			--warning: #f39c12;
+			--border: #2a2a2e;
+			--accent: #4da3ff;
+		}
+
+		* { box-sizing: border-box; }
+		html, body { height: 100%; }
+		body {
+			margin: 0;
+			font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+			background: var(--bg);
+			color: var(--text);
+		}
+
+		.app {
+			display: grid;
+			grid-template-columns: 320px 1fr 360px;
+			height: 100vh;
+		}
+
+		.sidebar {
+			background: var(--panel);
+			border-right: 1px solid var(--border);
+			display: flex;
+			flex-direction: column;
+		}
+
+		.sidebar-header {
+			padding: 14px 12px;
+			border-bottom: 1px solid var(--border);
+			display: flex;
+			gap: 8px;
+			align-items: center;
+		}
+		.sidebar-header input {
+			flex: 1;
+			background: var(--panel-2);
+			border: 1px solid var(--border);
+			color: var(--text);
+			padding: 8px 10px;
+			border-radius: 8px;
+		}
+		.btn { cursor: pointer; }
+		.btn-primary {
+			background: var(--primary);
+			border: none;
+			color: white;
+			padding: 8px 12px;
+			border-radius: 8px;
+		}
+		.btn-secondary {
+			background: var(--panel-2);
+			border: 1px solid var(--border);
+			color: var(--text);
+			padding: 6px 10px;
+			border-radius: 8px;
+		}
+		.btn-danger { background: var(--danger); color: white; border: none; padding: 6px 10px; border-radius: 8px; }
+		.btn-ghost { background: transparent; border: none; color: var(--muted); padding: 6px 8px; }
+
+		.channel-list { overflow: auto; }
+		.channel-item {
+			display: grid;
+			grid-template-columns: 40px 1fr auto;
+			gap: 10px;
+			padding: 12px;
+			border-bottom: 1px solid var(--border);
+			align-items: center;
+		}
+		.channel-avatar {
+			width: 40px; height: 40px; border-radius: 50%;
+			background: linear-gradient(135deg, #3c8ce7, #00eaff);
+			display: grid; place-items: center;
+			font-weight: 700; color: #0c0c0f;
+		}
+		.channel-name { font-weight: 600; }
+		.channel-tags { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+		.tag { font-size: 12px; color: white; border-radius: 999px; padding: 2px 8px; }
+		.tag-muted { background: #666;
+		}
+		.tag-critical { background: var(--warning); }
+		.tag-blacklist { background: var(--danger); }
+
+		.channel-actions { display: flex; gap: 6px; }
+
+		.channel-keywords { padding: 8px 12px 12px 62px; background: var(--panel); border-bottom: 1px solid var(--border); }
+		.keyword-pill { display: inline-flex; gap: 6px; align-items: center; background: var(--panel-2); border: 1px solid var(--border); padding: 4px 8px; border-radius: 999px; margin: 4px 4px 0 0; font-size: 12px; }
+		.keyword-type { color: var(--muted); font-weight: 600; text-transform: uppercase; }
+
+		.main {
+			background: var(--panel-2);
+			display: grid;
+			grid-template-rows: auto 1fr auto;
+		}
+		.main-header { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+		.feed { overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+		.message {
+			background: var(--panel);
+			border: 1px solid var(--border);
+			border-radius: 10px;
+			padding: 12px;
+		}
+		.message .meta { display: flex; gap: 8px; color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+		.message .text { white-space: pre-wrap; }
+		.message .decision { margin-top: 8px; font-size: 12px; color: var(--muted); }
+		.badge { display: inline-block; padding: 2px 6px; border-radius: 6px; font-size: 12px; color: #fff; }
+		.badge-ok { background: var(--success); }
+		.badge-block { background: var(--danger); }
+		.badge-info { background: var(--primary); }
+
+		.simulator { padding: 10px 12px; border-top: 1px solid var(--border); display: grid; grid-template-columns: 1fr 2fr auto; gap: 6px; }
+		.simulator select, .simulator input, .simulator textarea {
+			background: var(--panel);
+			border: 1px solid var(--border);
+			color: var(--text);
+			padding: 8px 10px;
+			border-radius: 8px;
+		}
+		.simulator textarea { grid-column: span 2; min-height: 60px; }
+
+		.settings {
+			background: var(--panel);
+			border-left: 1px solid var(--border);
+			display: flex; flex-direction: column; overflow: auto;
+		}
+		.settings section { padding: 12px; border-bottom: 1px solid var(--border); }
+		.settings h3 { margin: 6px 0 10px; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; }
+		.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+		.row input[type="text"], .row input[type="number"], .row select { background: var(--panel-2); border: 1px solid var(--border); color: var(--text); padding: 6px 8px; border-radius: 8px; }
+
+		.kv-list { display: flex; flex-wrap: wrap; gap: 6px; }
+
+		.toast-container { position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 9999; }
+		.toast { background: #1f2937; color: white; padding: 10px 12px; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.35); min-width: 240px; border: 1px solid #374151; }
+		.toast .title { font-weight: 700; }
+		.toast .desc { font-size: 12px; color: #bfc5d1; margin-top: 4px; }
+
+		.logs { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; background: #101114; border-top: 1px solid var(--border); padding: 8px 10px; height: 160px; overflow: auto; color: #c9d1d9; }
+		.log-line { font-size: 12px; opacity: 0.9; }
+
+		/* Small screens: collapse right settings */
+		@media (max-width: 1100px) {
+			.app { grid-template-columns: 280px 1fr; }
+			.settings { display: none; }
+		}
+	</style>
+</head>
+<body>
+	<div class="app">
+		<!-- Sidebar: Channels -->
+		<aside class="sidebar">
+			<div class="sidebar-header">
+				<input id="newChannelName" placeholder="New channel name" />
+				<button id="addChannelBtn" class="btn btn-primary">Add</button>
+			</div>
+			<div id="channelList" class="channel-list"></div>
+		</aside>
+
+		<!-- Main: Feed + Simulator -->
+		<main class="main">
+			<div class="main-header">
+				<div>Keyword-Override Notifications</div>
+				<div class="row">
+					<button id="exportBtn" class="btn btn-secondary">Export</button>
+					<input id="importFile" type="file" accept="application/json" style="display:none" />
+					<button id="importBtn" class="btn btn-secondary">Import</button>
+					<button id="resetBtn" class="btn btn-danger">Reset</button>
+				</div>
+			</div>
+			<div id="feed" class="feed"></div>
+			<div class="simulator">
+				<select id="simChannel"></select>
+				<textarea id="simText" placeholder="Type a message to simulate..."></textarea>
+				<button id="sendSimBtn" class="btn btn-primary">Send</button>
+			</div>
+			<div id="logs" class="logs"></div>
+		</main>
+
+		<!-- Settings -->
+		<aside class="settings">
+			<section>
+				<h3>Do Not Disturb</h3>
+				<div class="row">
+					<label>DND:</label>
+					<select id="dndMode">
+						<option value="off">Off</option>
+						<option value="critical_only">Allow critical only</option>
+						<option value="strict">Strict (no notifications)</option>
+					</select>
+					<div title="Seconds between notifications for the same channel">Cooldown (s):</div>
+					<input id="cooldownSeconds" type="number" min="0" step="1" style="width: 90px;" />
+				</div>
+			</section>
+			<section>
+				<h3>Fuzzy Matching</h3>
+				<div class="row">
+					<label>Levenshtein tolerance:</label>
+					<input id="fuzzyTolerance" type="number" min="0" max="5" step="1" style="width: 90px;" />
+					<span class="muted">Used for keywords of type "fuzzy"</span>
+				</div>
+			</section>
+			<section>
+				<h3>Global Keywords</h3>
+				<div class="row" style="margin-bottom:8px">
+					<input id="globalKeywordText" type="text" placeholder="Keyword text or /regex/" style="flex:1" />
+					<select id="globalKeywordType">
+						<option value="substring">substring</option>
+						<option value="whole">whole-word</option>
+						<option value="regex">regex</option>
+						<option value="fuzzy">fuzzy</option>
+					</select>
+					<button id="addGlobalKeyword" class="btn btn-primary">Add</button>
+				</div>
+				<div id="globalKeywords" class="kv-list"></div>
+				<div style="font-size:12px; color: var(--muted); margin-top:8px">Regex uses case-insensitive flag by default.</div>
+			</section>
+		</aside>
+	</div>
+
+	<div id="toastContainer" class="toast-container"></div>
+
+	<script>
+		// ====== Storage & State ======
+		// App state persisted in localStorage. Everything lives here for simplicity.
+		const STORAGE_KEY = 'kon_state_v1';
+
+		/**
+		 * @typedef {Object} Keyword
+		 * @property {string} id
+		 * @property {string} text
+		 * @property {'substring'|'whole'|'regex'|'fuzzy'} type
+		 */
+
+		/**
+		 * @typedef {Object} Channel
+		 * @property {string} id
+		 * @property {string} name
+		 * @property {boolean} muted
+		 * @property {boolean} critical
+		 * @property {boolean} blacklisted
+		 * @property {number|null} lastNotifiedAt epoch ms of last notification for cooldown
+		 * @property {Keyword[]} keywords
+		 */
+
+		/**
+		 * @typedef {Object} Settings
+		 * @property {'off'|'critical_only'|'strict'} dndMode
+		 * @property {number} cooldownSeconds
+		 * @property {number} fuzzyTolerance
+		 * @property {Keyword[]} globalKeywords
+		 */
+
+		/**
+		 * @typedef {Object} AppState
+		 * @property {Channel[]} channels
+		 * @property {Settings} settings
+		 * @property {Array<{id:string, channelId:string, text:string, ts:number, result:any}>} feed
+		 */
+
+		/** @type {AppState} */
+		let state = null;
+
+		function loadState() {
+			try {
+				const raw = localStorage.getItem(STORAGE_KEY);
+				if (!raw) throw new Error('empty');
+				const parsed = JSON.parse(raw);
+				// Basic migrations or defaults
+				parsed.settings = Object.assign({ dndMode: 'off', cooldownSeconds: 30, fuzzyTolerance: 1, globalKeywords: [] }, parsed.settings || {});
+				parsed.channels = (parsed.channels || []).map(c => Object.assign({ muted: true, critical: false, blacklisted: false, lastNotifiedAt: null, keywords: [] }, c));
+				parsed.feed = parsed.feed || [];
+				state = parsed;
+			} catch (e) {
+				state = createInitialState();
+				saveState();
+			}
+		}
+
+		function saveState() {
+			localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+		}
+
+		function createInitialState() {
+			const now = Date.now();
+			return {
+				channels: [
+					{ id: uid(), name: 'Kyiv Alerts (Official)', muted: true, critical: true, blacklisted: false, lastNotifiedAt: null, keywords: [ { id: uid(), text: 'повітряна тривога', type: 'whole' }, { id: uid(), text: 'air raid', type: 'fuzzy' } ] },
+					{ id: uid(), name: 'UA News Digest', muted: true, critical: false, blacklisted: false, lastNotifiedAt: null, keywords: [ { id: uid(), text: 'urgent', type: 'substring' } ] },
+					{ id: uid(), name: 'Local Community', muted: false, critical: false, blacklisted: false, lastNotifiedAt: null, keywords: [] },
+				],
+				settings: { dndMode: 'off', cooldownSeconds: 30, fuzzyTolerance: 1, globalKeywords: [ { id: uid(), text: 'alert', type: 'substring' } ] },
+				feed: [
+					{ id: uid(), channelId: 'seed', text: 'Welcome! Use the simulator below to test notifications.', ts: now, result: { decided: false, reasons: ['system:seed'] } }
+				]
+			};
+		}
+
+		// ====== Utilities ======
+		function uid() { return Math.random().toString(36).slice(2, 10); }
+		function escHtml(str) { return str.replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[s])); }
+		function formatTime(ts) { const d = new Date(ts); return d.toLocaleTimeString(); }
+
+		// ====== Matching Logic ======
+		function normalizeCase(s) { return (s || '').toString(); }
+
+		function escapeRegex(s) {
+			return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+		}
+
+		function levenshtein(a, b) {
+			// Classic dynamic programming implementation
+			a = a || ''; b = b || '';
+			const m = a.length, n = b.length;
+			if (m === 0) return n;
+			if (n === 0) return m;
+			const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+			for (let i = 0; i <= m; i++) dp[i][0] = i;
+			for (let j = 0; j <= n; j++) dp[0][j] = j;
+			for (let i = 1; i <= m; i++) {
+				const ca = a.charCodeAt(i - 1);
+				for (let j = 1; j <= n; j++) {
+					const cb = b.charCodeAt(j - 1);
+					const cost = ca === cb ? 0 : 1;
+					dp[i][j] = Math.min(
+						dp[i - 1][j] + 1,      // deletion
+						dp[i][j - 1] + 1,      // insertion
+						dp[i - 1][j - 1] + cost // substitution
+					);
+				}
+			}
+			return dp[m][n];
+		}
+
+		function matchSubstring(text, kw) {
+			return normalizeCase(text).toLocaleLowerCase().includes(normalizeCase(kw).toLocaleLowerCase());
+		}
+
+		function matchWholeWord(text, kw) {
+			const pattern = new RegExp(`\\b${escapeRegex(kw)}\\b`, 'i');
+			return pattern.test(text);
+		}
+
+		function matchRegex(text, patternStr) {
+			try {
+				// If user provides /pattern/flags syntax, parse it, otherwise default to 'i'
+				let pattern = patternStr;
+				let flags = 'i';
+				const m = /^\/(.*)\/([gimsuy]*)$/.exec(patternStr);
+				if (m) { pattern = m[1]; flags = m[2] || 'i'; if (!flags.includes('i')) flags += 'i'; }
+				const rx = new RegExp(pattern, flags);
+				return rx.test(text);
+			} catch (e) {
+				return false;
+			}
+		}
+
+		function matchFuzzy(text, kw, tolerance) {
+			// Sliding-window Levenshtein: check distance to any substring of text with same length as kw
+			const t = normalizeCase(text).toLocaleLowerCase();
+			const k = normalizeCase(kw).toLocaleLowerCase();
+			if (k.length === 0) return false;
+			if (t.length === 0) return false;
+			if (k.length > 200) return false; // basic guard
+			let min = Infinity;
+			for (let i = 0; i <= t.length - k.length; i++) {
+				const window = t.slice(i, i + k.length);
+				const d = levenshtein(window, k);
+				if (d < min) min = d;
+				if (min <= tolerance) return true;
+			}
+			return min <= tolerance;
+		}
+
+		function matchAgainstKeywords(text, keywords, fuzzyTolerance) {
+			// Returns array of matched keyword descriptors
+			const matches = [];
+			for (const kw of keywords) {
+				let hit = false;
+				if (kw.type === 'substring') hit = matchSubstring(text, kw.text);
+				else if (kw.type === 'whole') hit = matchWholeWord(text, kw.text);
+				else if (kw.type === 'regex') hit = matchRegex(text, kw.text);
+				else if (kw.type === 'fuzzy') hit = matchFuzzy(text, kw.text, fuzzyTolerance);
+				if (hit) matches.push({ id: kw.id, text: kw.text, type: kw.type });
+			}
+			return matches;
+		}
+
+		// ====== Decision Engine ======
+		/**
+		 * Applies DND, blacklist, critical, mute-override logic and cooldown.
+		 * Returns { notify:boolean, reasons:string[], matched: Keyword[], usedGlobal:boolean }
+		 */
+		function decideNotification(channel, messageText, settings) {
+			const now = Date.now();
+			const reasons = [];
+			let notify = false;
+			let usedGlobal = false;
+
+			// Blacklist gate
+			if (channel.blacklisted) {
+				reasons.push('blocked: channel is blacklisted');
+				return { notify: false, reasons, matched: [], usedGlobal };
+			}
+
+			// DND strict gate
+			if (settings.dndMode === 'strict') {
+				reasons.push('blocked: DND strict');
+				return { notify: false, reasons, matched: [], usedGlobal };
+			}
+
+			// Cooldown pre-check (only matters if we end up notifying). We'll evaluate later again for clarity.
+
+			// Critical bypass logic
+			if (channel.critical) {
+				if (settings.dndMode === 'critical_only' || settings.dndMode === 'off') {
+					reasons.push('allow: critical channel');
+					notify = true;
+				} else {
+					reasons.push('blocked: DND prevents even critical');
+				}
+			}
+
+			// Keyword matching (per-channel and global)
+			const matchedChannel = matchAgainstKeywords(messageText, channel.keywords || [], settings.fuzzyTolerance);
+			const matchedGlobal = matchAgainstKeywords(messageText, settings.globalKeywords || [], settings.fuzzyTolerance);
+			const matched = [...matchedChannel, ...matchedGlobal];
+			if (matchedGlobal.length) usedGlobal = true;
+
+			if (!notify) {
+				if (!channel.muted) {
+					reasons.push('allow: channel is not muted');
+					notify = true;
+				} else if (matched.length > 0) {
+					reasons.push('allow: muted channel keyword override');
+					notify = true;
+				} else {
+					reasons.push('blocked: muted and no keyword match');
+				}
+			}
+
+			// DND critical-only gate for non-critical
+			if (notify && settings.dndMode === 'critical_only' && !channel.critical) {
+				reasons.push('blocked: DND critical-only for non-critical channel');
+				notify = false;
+			}
+
+			// Cooldown gate (per channel)
+			if (notify && typeof settings.cooldownSeconds === 'number' && settings.cooldownSeconds > 0) {
+				const last = channel.lastNotifiedAt || 0;
+				const elapsed = (now - last) / 1000;
+				if (elapsed < settings.cooldownSeconds) {
+					reasons.push(`blocked: cooldown active (${Math.ceil(settings.cooldownSeconds - elapsed)}s left)`);
+					notify = false;
+				}
+			}
+
+			return { notify, reasons, matched, usedGlobal };
+		}
+
+		// ====== Rendering ======
+		function renderAll() {
+			renderChannels();
+			renderSimulator();
+			renderSettings();
+			renderGlobalKeywords();
+			renderFeed();
+		}
+
+		function renderChannels() {
+			const list = document.getElementById('channelList');
+			list.innerHTML = '';
+			for (const ch of state.channels) {
+				const row = document.createElement('div');
+				row.className = 'channel-item';
+
+				const av = document.createElement('div');
+				av.className = 'channel-avatar';
+				av.textContent = (ch.name || '?').slice(0, 2).toUpperCase();
+
+				const mid = document.createElement('div');
+				const name = document.createElement('div');
+				name.className = 'channel-name';
+				name.textContent = ch.name;
+				const tags = document.createElement('div');
+				tags.className = 'channel-tags';
+				if (ch.muted) { const t = document.createElement('span'); t.className = 'tag tag-muted'; t.textContent = 'Muted'; tags.appendChild(t); }
+				if (ch.critical) { const t = document.createElement('span'); t.className = 'tag tag-critical'; t.textContent = 'Critical'; tags.appendChild(t); }
+				if (ch.blacklisted) { const t = document.createElement('span'); t.className = 'tag tag-blacklist'; t.textContent = 'Blacklisted'; tags.appendChild(t); }
+				mid.appendChild(name);
+				mid.appendChild(tags);
+
+				const actions = document.createElement('div');
+				actions.className = 'channel-actions';
+				const muteBtn = document.createElement('button'); muteBtn.className = 'btn btn-secondary'; muteBtn.textContent = ch.muted ? 'Unmute' : 'Mute';
+				muteBtn.onclick = () => { ch.muted = !ch.muted; saveState(); renderAll(); };
+				const critBtn = document.createElement('button'); critBtn.className = 'btn btn-secondary'; critBtn.textContent = ch.critical ? 'Unmark Critical' : 'Mark Critical';
+				critBtn.onclick = () => { ch.critical = !ch.critical; saveState(); renderAll(); };
+				const blkBtn = document.createElement('button'); blkBtn.className = 'btn btn-secondary'; blkBtn.textContent = ch.blacklisted ? 'Unblacklist' : 'Blacklist';
+				blkBtn.onclick = () => { ch.blacklisted = !ch.blacklisted; saveState(); renderAll(); };
+				const delBtn = document.createElement('button'); delBtn.className = 'btn btn-danger'; delBtn.textContent = 'Delete';
+				delBtn.onclick = () => { if (confirm('Delete channel?')) { state.channels = state.channels.filter(c => c.id !== ch.id); saveState(); renderAll(); } };
+				actions.append(muteBtn, critBtn, blkBtn, delBtn);
+
+				row.append(av, mid, actions);
+				list.appendChild(row);
+
+				// Keyword editor per channel
+				const kwRow = document.createElement('div');
+				kwRow.className = 'channel-keywords';
+				const addWrap = document.createElement('div'); addWrap.className = 'row'; addWrap.style.marginBottom = '8px';
+				const kwInput = document.createElement('input'); kwInput.type = 'text'; kwInput.placeholder = 'keyword text or /regex/'; kwInput.style.flex = '1';
+				const kwType = document.createElement('select'); ['substring','whole','regex','fuzzy'].forEach(t => { const o = document.createElement('option'); o.value=t; o.textContent=t; kwType.appendChild(o); });
+				const addBtn = document.createElement('button'); addBtn.className = 'btn btn-primary'; addBtn.textContent = 'Add keyword';
+				addBtn.onclick = () => {
+					const text = (kwInput.value || '').trim();
+					if (!text) return;
+					ch.keywords.push({ id: uid(), text, type: kwType.value });
+					saveState(); renderAll();
+				};
+				addWrap.append(kwInput, kwType, addBtn);
+
+				const kwList = document.createElement('div');
+				for (const k of ch.keywords) {
+					const pill = document.createElement('span'); pill.className = 'keyword-pill';
+					const t = document.createElement('span'); t.textContent = k.text;
+					const ty = document.createElement('span'); ty.className='keyword-type'; ty.textContent = k.type;
+					const x = document.createElement('button'); x.className = 'btn-ghost'; x.textContent = '✕'; x.title = 'Remove';
+					x.onclick = () => { ch.keywords = ch.keywords.filter(p => p.id !== k.id); saveState(); renderAll(); };
+					pill.append(ty, t, x);
+					kwList.appendChild(pill);
+				}
+
+				kwRow.append(addWrap, kwList);
+				list.appendChild(kwRow);
+			}
+		}
+
+		function renderSimulator() {
+			const sel = document.getElementById('simChannel');
+			sel.innerHTML = '';
+			for (const ch of state.channels) {
+				const o = document.createElement('option'); o.value = ch.id; o.textContent = ch.name; sel.appendChild(o);
+			}
+		}
+
+		function renderSettings() {
+			document.getElementById('dndMode').value = state.settings.dndMode;
+			document.getElementById('cooldownSeconds').value = state.settings.cooldownSeconds;
+			document.getElementById('fuzzyTolerance').value = state.settings.fuzzyTolerance;
+		}
+
+		function renderGlobalKeywords() {
+			const wrap = document.getElementById('globalKeywords');
+			wrap.innerHTML = '';
+			for (const k of state.settings.globalKeywords) {
+				const pill = document.createElement('span'); pill.className = 'keyword-pill';
+				const t = document.createElement('span'); t.textContent = k.text;
+				const ty = document.createElement('span'); ty.className='keyword-type'; ty.textContent = k.type;
+				const x = document.createElement('button'); x.className = 'btn-ghost'; x.textContent = '✕'; x.title = 'Remove';
+				x.onclick = () => { state.settings.globalKeywords = state.settings.globalKeywords.filter(p => p.id !== k.id); saveState(); renderAll(); };
+				pill.append(ty, t, x);
+				wrap.appendChild(pill);
+			}
+		}
+
+		function renderFeed() {
+			const feed = document.getElementById('feed');
+			feed.innerHTML = '';
+			for (const m of state.feed.slice().reverse()) {
+				const ch = state.channels.find(c => c.id === m.channelId) || { name: 'System' };
+				const card = document.createElement('div'); card.className = 'message';
+				const meta = document.createElement('div'); meta.className = 'meta';
+				const badge = document.createElement('span'); badge.className = 'badge ' + (m.result.notify ? 'badge-ok' : 'badge-block'); badge.textContent = m.result.notify ? 'NOTIFIED' : 'NO NOTIFY';
+				const ts = document.createElement('span'); ts.textContent = formatTime(m.ts);
+				const cn = document.createElement('span'); cn.textContent = ch.name;
+				meta.append(badge, cn, ts);
+				const text = document.createElement('div'); text.className = 'text'; text.textContent = m.text;
+				const decision = document.createElement('div'); decision.className = 'decision';
+				const mat = m.result.matched && m.result.matched.length ? `; matched: ${m.result.matched.map(x => `${x.type}:${x.text}`).join(', ')}` : '';
+				const src = m.result.usedGlobal ? 'global' : (m.result.matched && m.result.matched.length ? 'channel' : 'none');
+				decision.textContent = `Reasons: ${m.result.reasons.join(' | ')}${mat} | keyword source: ${src}`;
+				card.append(meta, text, decision);
+				feed.appendChild(card);
+			}
+		}
+
+		// ====== Interaction Handlers ======
+		function wireEvents() {
+			document.getElementById('addChannelBtn').onclick = () => {
+				const name = (document.getElementById('newChannelName').value || '').trim();
+				if (!name) return;
+				state.channels.push({ id: uid(), name, muted: true, critical: false, blacklisted: false, lastNotifiedAt: null, keywords: [] });
+				document.getElementById('newChannelName').value = '';
+				saveState(); renderAll();
+			};
+
+			document.getElementById('sendSimBtn').onclick = () => {
+				const chId = document.getElementById('simChannel').value;
+				const text = (document.getElementById('simText').value || '').trim();
+				if (!chId || !text) return;
+				const ch = state.channels.find(c => c.id === chId);
+				if (!ch) return;
+				const decision = decideNotification(ch, text, state.settings);
+				// Record in feed
+				const item = { id: uid(), channelId: ch.id, text, ts: Date.now(), result: decision };
+				state.feed.push(item);
+				// Apply cooldown book-keeping if we actually notify
+				if (decision.notify) ch.lastNotifiedAt = Date.now();
+				saveState();
+				renderFeed();
+				appendLog(`[${formatTime(item.ts)}] ${ch.name}: ${text}\n -> ${decision.notify ? 'NOTIFY' : 'NO'} | ${decision.reasons.join(' | ')}`);
+				if (decision.notify) showToast(`${ch.name}`, text.slice(0, 140));
+				// Clear input for next message
+				document.getElementById('simText').value = '';
+			};
+
+			document.getElementById('dndMode').onchange = (e) => { state.settings.dndMode = e.target.value; saveState(); };
+			document.getElementById('cooldownSeconds').onchange = (e) => { state.settings.cooldownSeconds = Math.max(0, Number(e.target.value || 0)); saveState(); };
+			document.getElementById('fuzzyTolerance').onchange = (e) => { state.settings.fuzzyTolerance = Math.max(0, Number(e.target.value || 0)); saveState(); };
+
+			document.getElementById('addGlobalKeyword').onclick = () => {
+				const t = (document.getElementById('globalKeywordText').value || '').trim();
+				if (!t) return;
+				const type = document.getElementById('globalKeywordType').value;
+				state.settings.globalKeywords.push({ id: uid(), text: t, type });
+				document.getElementById('globalKeywordText').value = '';
+				saveState(); renderGlobalKeywords();
+			};
+
+			document.getElementById('exportBtn').onclick = () => {
+				const data = JSON.stringify(state, null, 2);
+				const blob = new Blob([data], { type: 'application/json' });
+				const url = URL.createObjectURL(blob);
+				const a = document.createElement('a');
+				a.href = url; a.download = 'kon-export.json'; a.click();
+				URL.revokeObjectURL(url);
+			};
+
+			document.getElementById('importBtn').onclick = () => {
+				document.getElementById('importFile').click();
+			};
+			document.getElementById('importFile').onchange = (e) => {
+				const file = e.target.files[0]; if (!file) return;
+				const reader = new FileReader();
+				reader.onload = () => {
+					try {
+						const imported = JSON.parse(reader.result);
+						// Basic validation
+						if (!imported || !Array.isArray(imported.channels) || !imported.settings) throw new Error('Invalid file');
+						state = imported; // trust user import for prototype
+						loadState(); // run through defaults/migrations
+						saveState();
+						renderAll();
+						appendLog(`[${formatTime(Date.now())}] Imported configuration.`);
+					} catch (err) {
+						alert('Failed to import: ' + err.message);
+					}
+				};
+				reader.readAsText(file);
+			};
+
+			document.getElementById('resetBtn').onclick = () => {
+				if (!confirm('Reset to initial sample data?')) return;
+				state = createInitialState();
+				saveState();
+				renderAll();
+				appendLog(`[${formatTime(Date.now())}] State reset.`);
+			};
+		}
+
+		function appendLog(line) {
+			const logs = document.getElementById('logs');
+			const div = document.createElement('div');
+			div.className = 'log-line';
+			div.textContent = line;
+			logs.appendChild(div);
+			logs.scrollTop = logs.scrollHeight;
+		}
+
+		// ====== Toasts ======
+		function showToast(title, desc) {
+			const wrap = document.getElementById('toastContainer');
+			const node = document.createElement('div'); node.className = 'toast';
+			const t = document.createElement('div'); t.className = 'title'; t.textContent = title;
+			const d = document.createElement('div'); d.className = 'desc'; d.textContent = desc;
+			node.append(t, d);
+			wrap.appendChild(node);
+			setTimeout(() => { node.style.opacity = '0'; node.style.transform = 'translateY(8px)'; }, 2800);
+			setTimeout(() => { wrap.removeChild(node); }, 3400);
+		}
+
+		// ====== Init ======
+		loadState();
+		renderAll();
+		wireEvents();
+	</script>
+</body>
+</html>
